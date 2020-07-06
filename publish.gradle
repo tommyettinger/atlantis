@@ -1,0 +1,34 @@
+modifyPom {
+    project {
+        name 'atlantis'
+        description 'Basic graph data structures and algorithms.'
+        url 'https://github.com/tommyettinger/atlantis'
+        inceptionYear '2020'
+
+        scm {
+            url 'https://github.com/tommyettinger/atlantis'
+            connection 'scm:https://github.com/tommyettinger/atlantis.git'
+            developerConnection 'scm:git://github.com/tommyettinger/atlantis.git'
+        }
+
+        licenses {
+            license {
+                name 'Apache Public License'
+                url 'https://www.apache.org/licenses/LICENSE-2.0.html'
+                distribution 'repo'
+            }
+        }
+
+        developers {
+            developer {
+                id 'tommyettinger'
+                name 'Tommy Ettinger'
+                email 'nospam@tommyettinger.github.io'
+            }
+        }
+    }
+}
+
+nexusStaging {
+    packageGroup = 'com.github.tommyettinger'
+}
