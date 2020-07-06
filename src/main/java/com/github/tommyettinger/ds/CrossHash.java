@@ -9,9 +9,48 @@ import java.util.Objects;
 import static java.lang.Float.floatToIntBits;
 
 /**
+ * Code for hashing; this mostly consists of methods to hash arrays, and also has some utilities and nested classes.
+ * Most of the methods here are like {@link #hash(char[])} or {@link #hash64(int[])}, hashing a whole array and giving a
+ * 32-bit or 64-bit result, respectively. The algorithm used in the main part of the class is closely related to wyhash,
+ * but doesn't produce the same results (it still passes stringent statistical tests in multiple variants of SMHasher).
+ * <br>
+ * Use {@link IHasher} implementations with {@link OrderedMap} and {@link OrderedSet} to permit normal Java arrays as
+ * keys, which can be more efficient in some cases (arrays are still mutable, so they shouldn't be changed while used as
+ * keys). You can get custom hash functors with {@link Curlup}, which has 2 to the 64 possible hash functions based on a
+ * seed given at construction or in the call.
+ * <br>
+ * Utility functions here are {@link #nextPowerOfTwo(int)} (for int and long), and {@link #doubleToMixedIntBits(double)}
+ * (which is mostly useful for converting all bits of a double into an int usable for hashing).
  * @author Tommy Ettinger
  */
 public class CrossHash {
+
+    /**
+     * Return the least power of two greater than or equal to the specified value.
+     * <br>
+     * Note that this function will return 1 when the argument is 0.
+     * <br>
+     * This is a cleaned-up Java version of <a href="https://jameshfisher.com/2018/03/30/round-up-power-2/">this C code</a>.
+     * @param x a non-negative int.
+     * @return the least power of two greater than or equal to the specified value.
+     */
+    public static int nextPowerOfTwo(final int x) {
+        return 1 << -Integer.numberOfLeadingZeros(x - 1);
+    }
+
+    /**
+     * Return the least power of two greater than or equal to the specified value.
+     * <br>
+     * Note that this function will return 1 when the argument is 0.
+     * <br>
+     * This is a cleaned-up Java version of <a href="https://jameshfisher.com/2018/03/30/round-up-power-2/">this C code</a>.
+     * @param x a non-negative long.
+     * @return the least power of two greater than or equal to the specified value.
+     */
+    public static long nextPowerOfTwo(final long x) {
+        return 1L << -Long.numberOfLeadingZeros(x - 1);
+    }
+    
     /**
      * Gets the 64-bit internal representation of a given {@code double}, XORs the upper and lower halves of that 64-bit
      * value, and returns the result as an int. Useful for mixing parts of a double's bits that are typically
@@ -790,7 +829,7 @@ public class CrossHash {
         final int h = data.hashCode() * 0x9E375;
         return h ^ (h >>> 16);
     }
-
+    
     /**
      * An interface that can be used to move the logic for the hashCode() and equals() methods from a class' methods to
      * an implementation of IHasher that certain collections in SquidLib can use. Primarily useful when the key type is
