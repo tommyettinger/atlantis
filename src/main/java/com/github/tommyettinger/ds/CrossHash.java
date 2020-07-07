@@ -14,7 +14,7 @@ import static java.lang.Float.floatToIntBits;
  * 32-bit or 64-bit result, respectively. The algorithm used in the main part of the class is closely related to wyhash,
  * but doesn't produce the same results (it still passes stringent statistical tests in multiple variants of SMHasher).
  * <br>
- * Use {@link IHasher} implementations with {@link OrderedMap} and {@link OrderedSet} to permit normal Java arrays as
+ * Use {@link IHasher} implementations with {@link IndexedMap} and {@link IndexedSet} to permit normal Java arrays as
  * keys, which can be more efficient in some cases (arrays are still mutable, so they shouldn't be changed while used as
  * keys). You can get custom hash functors with {@link Curlup}, which has 2 to the 64 possible hash functions based on a
  * seed given at construction or in the call.
@@ -1219,9 +1219,9 @@ public class CrossHash {
 
     /**
      * The most basic IHasher type; effectively delegates to {@link Objects#hashCode(Object)} and
-     * {@link Objects#equals(Object, Object)}. Might not scramble the bits of a hash well enough to have good
-     * performance in a hash table lke {@link OrderedMap}, unless the objects being hashed have
-     * good hashCode() implementations already.
+     * {@link Objects#equals(Object, Object)}. This is the best IHasher to use when the Objects
+     * being hashed have a strong hashCode() implementation already, since it avoids duplicating
+     * the work that strong hashCode() already did.
      */
     public static final IHasher mildHasher = new MildHasher();
 
@@ -1282,13 +1282,13 @@ public class CrossHash {
     }
 
     /**
-     * This IHasher is the one you should use if you aren't totally certain what types will go in an OrderedMap's keys
-     * or an OrderedSet's items, since it can handle mixes of elements.
+     * This IHasher is the one you should use if you aren't totally certain what types will go in an IndexedMap's keys
+     * or an IndexedSet's items, since it can handle mixes of elements.
      */
     public static final IHasher generalHasher = new GeneralHasher();
 
     /**
-     * Like Yolk, this is a class for hash functors, each an object with a 64-bit long seed. It uses an odd-but-fast
+     * This is a class for hash functors, each an object with a 64-bit long seed. It uses an odd-but-fast
      * SIMD-friendly technique when hashing 32-bit items or smaller, and falls back to Yolk's algorithm when hashing
      * long values. If you are mainly hashing int arrays, short arrays, or byte arrays, this is probably the fastest
      * hash here unless the arrays are small (it outperforms all of the other hashes here on int arrays when those

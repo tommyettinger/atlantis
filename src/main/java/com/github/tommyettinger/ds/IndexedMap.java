@@ -34,7 +34,7 @@ import java.util.*;
  * iteration order). Note that this order has nothing in common with the natural order of the keys. The order is kept by means of a int-specialized list, {@link IntVLA}, and is modifiable with this
  * class' {@link #reorder(int...)} and {@link #shuffle(Random)} methods, among other tools. It may be preferable to avoid instantiating an Iterator object and instead
  * use a normal int-based for loop with {@link #getAt(int)} called in each iteration. Though this doesn't allow easy deletion of items during iteration, it may be the
- * fastest way to iterate through an OrderedMap.
+ * fastest way to iterate through an IndexedMap.
  * <br>
  * This class implements the interface of a sorted map, so to allow easy access of the iteration order: for instance, you can get the first key in iteration order with {@code firstKey()} without
  * having to create an iterator; however, this class partially violates the {@link SortedMap} contract because all submap methods throw an exception and {@link #comparator()} returns always
@@ -43,9 +43,9 @@ import java.util.*;
  * Additional methods, such as <code>getAndMoveToFirst()</code>, make it easy to use instances of this class as a cache (e.g., with LRU policy).
  * <br>
  * This class allows approximately constant-time lookup of keys or values by their index in the ordering, which can
- * allow some novel usage of the data structure. {@link OrderedSet} can be used like a list of unique elements, keeping
- * order like a list does but also allowing rapid checks for whether an item exists in the OrderedSet, and OrderedMap
- * can be used like that but with values associated as well (where OrderedSet uses contains(), OrderedMap uses
+ * allow some novel usage of the data structure. {@link IndexedSet} can be used like a list of unique elements, keeping
+ * order like a list does but also allowing rapid checks for whether an item exists in the IndexedSet, and IndexedMap
+ * can be used like that but with values associated as well (where IndexedSet uses contains(), IndexedMap uses
  * containsKey()). You can also set the key and value at a position with {@link #putAt(Object, Object, int)}, or alter
  * the key while keeping its value and index the same with {@link #alter(Object, Object)}. Reordering works here too,
  * both with completely random orders from {@link #shuffle(Random)} or with a previously-generated ordering from
@@ -54,7 +54,7 @@ import java.util.*;
  * insertion-ordered Maps and Sets don't allow insertion or removal at anywhere but the beginning or end of the order).
  * <br>
  * You can pass a {@link CrossHash.IHasher} instance such as {@link CrossHash#generalHasher} as an extra parameter to
- * most of this class' constructors, which allows the OrderedMap to use arrays (usually primitive arrays) as keys. If
+ * most of this class' constructors, which allows the IndexedMap to use arrays (usually primitive arrays) as keys. If
  * you expect only one type of array, you can use an instance like {@link CrossHash#intHasher} to hash int arrays, or
  * the aforementioned generalHasher to hash most kinds of arrays (it can't handle most multi-dimensional arrays well).
  * If you aren't using arrays as keys, you don't need to give an IHasher to the constructor and can ignore this feature
@@ -72,9 +72,9 @@ import java.util.*;
  * This is just one example of a case where a custom IHasher can be useful for performance reasons; there are also cases
  * where an IHasher is needed to enforce hashing by identity or by value, which affect program logic. Note that the
  * given IHasher is likely to be sub-optimal for many situations with Integer keys, and you may want to try a few
- * different approaches if you know OrderedMap is a bottleneck in your application. If the IHasher is a performance
- * problem, it will be at its worst if the OrderedMap needs to resize, and thus rehash, many times; this won't happen if
- * the capacity is set correctly when the OrderedMap is created (with the capacity equal to or greater than the maximum
+ * different approaches if you know IndexedMap is a bottleneck in your application. If the IHasher is a performance
+ * problem, it will be at its worst if the IndexedMap needs to resize, and thus rehash, many times; this won't happen if
+ * the capacity is set correctly when the IndexedMap is created (with the capacity equal to or greater than the maximum
  * number of entries that will be added).
  * <br>
  * Thank you, Sebastiano Vigna, for making FastUtil available to the public with such high quality.
@@ -83,7 +83,7 @@ import java.util.*;
  * @author Sebastiano Vigna (responsible for all the hard parts)
  * @author Tommy Ettinger (mostly responsible for squashing several layers of parent classes into one monster class)
  */
-public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, Cloneable {
+public class IndexedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, Cloneable {
     private static final long serialVersionUID = 0L;
     /**
      * The array of keys.
@@ -167,7 +167,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Creates a new OrderedMap.
+     * Creates a new IndexedMap.
      * <p>
      * <p>The actual table size will be the least power of two greater than <code>expected</code>/<code>f</code>.
      *
@@ -176,7 +176,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      */
 
     @SuppressWarnings("unchecked")
-    public OrderedMap(final int expected, final float f) {
+    public IndexedMap(final int expected, final float f) {
         if (f <= 0 || f > 1)
             throw new IllegalArgumentException("Load factor must be greater than 0 and smaller than or equal to 1");
         if (expected < 0) throw new IllegalArgumentException("The expected number of elements must be nonnegative");
@@ -192,50 +192,50 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Creates a new OrderedMap with 0.75f as load factor.
+     * Creates a new IndexedMap with 0.75f as load factor.
      *
-     * @param expected the expected number of elements in the OrderedMap.
+     * @param expected the expected number of elements in the IndexedMap.
      */
-    public OrderedMap(final int expected) {
+    public IndexedMap(final int expected) {
         this(expected, DEFAULT_LOAD_FACTOR);
     }
 
     /**
-     * Creates a new OrderedMap with initial expected 16 entries and 0.75f as load factor.
+     * Creates a new IndexedMap with initial expected 16 entries and 0.75f as load factor.
      */
-    public OrderedMap() {
+    public IndexedMap() {
         this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
     }
 
     /**
-     * Creates a new OrderedMap copying a given one.
+     * Creates a new IndexedMap copying a given one.
      *
-     * @param m a {@link Map} to be copied into the new OrderedMap.
+     * @param m a {@link Map} to be copied into the new IndexedMap.
      * @param f the load factor.
      */
-    public OrderedMap(final Map<? extends K, ? extends V> m, final float f) {
-        this(m.size(), f, (m instanceof OrderedMap) ? ((OrderedMap) m).hasher : CrossHash.mildHasher);
+    public IndexedMap(final Map<? extends K, ? extends V> m, final float f) {
+        this(m.size(), f, (m instanceof IndexedMap) ? ((IndexedMap) m).hasher : CrossHash.mildHasher);
         putAll(m);
     }
 
     /**
-     * Creates a new OrderedMap with 0.75f as load factor copying a given one.
+     * Creates a new IndexedMap with 0.75f as load factor copying a given one.
      *
-     * @param m a {@link Map} to be copied into the new OrderedMap.
+     * @param m a {@link Map} to be copied into the new IndexedMap.
      */
-    public OrderedMap(final Map<? extends K, ? extends V> m) {
-        this(m, (m instanceof OrderedMap) ? ((OrderedMap) m).f : DEFAULT_LOAD_FACTOR, (m instanceof OrderedMap) ? ((OrderedMap) m).hasher : CrossHash.mildHasher);
+    public IndexedMap(final Map<? extends K, ? extends V> m) {
+        this(m, (m instanceof IndexedMap) ? ((IndexedMap) m).f : DEFAULT_LOAD_FACTOR, (m instanceof IndexedMap) ? ((IndexedMap) m).hasher : CrossHash.mildHasher);
     }
 
     /**
-     * Creates a new OrderedMap using the elements of two parallel arrays.
+     * Creates a new IndexedMap using the elements of two parallel arrays.
      *
-     * @param keyArray the array of keys of the new OrderedMap.
-     * @param valueArray the array of corresponding values in the new OrderedMap.
+     * @param keyArray the array of keys of the new IndexedMap.
+     * @param valueArray the array of corresponding values in the new IndexedMap.
      * @param f the load factor.
      * @throws IllegalArgumentException if <code>k</code> and <code>v</code> have different lengths.
      */
-    public OrderedMap(final K[] keyArray, final V[] valueArray, final float f) {
+    public IndexedMap(final K[] keyArray, final V[] valueArray, final float f) {
         this(keyArray.length, f);
         if (keyArray.length != valueArray.length)
             throw new IllegalArgumentException("The key array and the value array have different lengths (" + keyArray.length + " and " + valueArray.length + ")");
@@ -243,24 +243,24 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
             put(keyArray[i], valueArray[i]);
     }
     /**
-     * Creates a new OrderedMap using the elements of two parallel arrays.
+     * Creates a new IndexedMap using the elements of two parallel arrays.
      *
-     * @param keyColl the collection of keys of the new OrderedMap.
-     * @param valueColl the collection of corresponding values in the new OrderedMap.
+     * @param keyColl the collection of keys of the new IndexedMap.
+     * @param valueColl the collection of corresponding values in the new IndexedMap.
      * @throws IllegalArgumentException if <code>k</code> and <code>v</code> have different lengths.
      */
-    public OrderedMap(final Collection<K> keyColl, final Collection<V> valueColl) {
+    public IndexedMap(final Collection<K> keyColl, final Collection<V> valueColl) {
         this(keyColl, valueColl, DEFAULT_LOAD_FACTOR);
     }
     /**
-     * Creates a new OrderedMap using the elements of two parallel arrays.
+     * Creates a new IndexedMap using the elements of two parallel arrays.
      *
-     * @param keyColl the collection of keys of the new OrderedMap.
-     * @param valueColl the collection of corresponding values in the new OrderedMap.
+     * @param keyColl the collection of keys of the new IndexedMap.
+     * @param valueColl the collection of corresponding values in the new IndexedMap.
      * @param f the load factor.
      * @throws IllegalArgumentException if <code>k</code> and <code>v</code> have different lengths.
      */
-    public OrderedMap(final Collection<K> keyColl, final Collection<V> valueColl, final float f) {
+    public IndexedMap(final Collection<K> keyColl, final Collection<V> valueColl, final float f) {
         this(keyColl.size(), f);
         if (keyColl.size() != valueColl.size())
             throw new IllegalArgumentException("The key array and the value array have different lengths (" + keyColl.size() + " and " + valueColl.size() + ")");
@@ -273,18 +273,18 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Creates a new OrderedMap with 0.75f as load factor using the elements of two parallel arrays.
+     * Creates a new IndexedMap with 0.75f as load factor using the elements of two parallel arrays.
      *
-     * @param keyArray the array of keys of the new OrderedMap.
-     * @param valueArray the array of corresponding values in the new OrderedMap.
+     * @param keyArray the array of keys of the new IndexedMap.
+     * @param valueArray the array of corresponding values in the new IndexedMap.
      * @throws IllegalArgumentException if <code>k</code> and <code>v</code> have different lengths.
      */
-    public OrderedMap(final K[] keyArray, final V[] valueArray) {
+    public IndexedMap(final K[] keyArray, final V[] valueArray) {
         this(keyArray, valueArray, DEFAULT_LOAD_FACTOR);
     }
 
     /**
-     * Creates a new OrderedMap.
+     * Creates a new IndexedMap.
      * <p>
      * <p>The actual table size will be the least power of two greater than <code>expected</code>/<code>f</code>.
      *
@@ -294,7 +294,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      */
 
     @SuppressWarnings("unchecked")
-    public OrderedMap(final int expected, final float f, CrossHash.IHasher hasher) {
+    public IndexedMap(final int expected, final float f, CrossHash.IHasher hasher) {
         if (f <= 0 || f > 1)
             throw new IllegalArgumentException("Load factor must be greater than 0 and smaller than or equal to 1");
         if (expected < 0) throw new IllegalArgumentException("The expected number of elements must be nonnegative");
@@ -309,53 +309,53 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         this.hasher = (hasher == null) ? CrossHash.mildHasher : hasher;
     }
     /**
-     * Creates a new OrderedMap with 0.75f as load factor.
+     * Creates a new IndexedMap with 0.75f as load factor.
      *
-     * @param expected the expected number of elements in the OrderedMap.
+     * @param expected the expected number of elements in the IndexedMap.
      * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
      */
-    public OrderedMap(final int expected, CrossHash.IHasher hasher) {
+    public IndexedMap(final int expected, CrossHash.IHasher hasher) {
         this(expected, DEFAULT_LOAD_FACTOR, hasher);
     }
 
     /**
-     * Creates a new OrderedMap with initial expected 16 entries and 0.75f as load factor.
+     * Creates a new IndexedMap with initial expected 16 entries and 0.75f as load factor.
      */
-    public OrderedMap(CrossHash.IHasher hasher) {
+    public IndexedMap(CrossHash.IHasher hasher) {
         this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR, hasher);
     }
 
     /**
-     * Creates a new OrderedMap copying a given one.
+     * Creates a new IndexedMap copying a given one.
      *
-     * @param m a {@link Map} to be copied into the new OrderedMap.
+     * @param m a {@link Map} to be copied into the new IndexedMap.
      * @param f the load factor.
      * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
      */
-    public OrderedMap(final Map<? extends K, ? extends V> m, final float f, CrossHash.IHasher hasher) {
+    public IndexedMap(final Map<? extends K, ? extends V> m, final float f, CrossHash.IHasher hasher) {
         this(m.size(), f, hasher);
         putAll(m);
     }
 
     /**
-     * Creates a new OrderedMap with 0.75f as load factor copying a given one.
-     * @param m a {@link Map} to be copied into the new OrderedMap.
+     * Creates a new IndexedMap with 0.75f as load factor copying a given one.
+     * @param m a {@link Map} to be copied into the new IndexedMap.
      * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
      */
-    public OrderedMap(final Map<? extends K, ? extends V> m, CrossHash.IHasher hasher) {
+    public IndexedMap(final Map<? extends K, ? extends V> m, CrossHash.IHasher hasher) {
         this(m, DEFAULT_LOAD_FACTOR, hasher);
     }
 
     /**
-     * Creates a new OrderedMap using the elements of two parallel arrays.
+     * Creates a new IndexedMap using the elements of two parallel arrays.
      *
-     * @param keyArray the array of keys of the new OrderedMap.
-     * @param valueArray the array of corresponding values in the new OrderedMap.
+     * @param keyArray the array of keys of the new IndexedMap.
+     * @param valueArray the array of corresponding values in the new IndexedMap.
      * @param f the load factor.
      * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
      * @throws IllegalArgumentException if <code>k</code> and <code>v</code> have different lengths.
      */
-    public OrderedMap(final K[] keyArray, final V[] valueArray, final float f, CrossHash.IHasher hasher) {
+    public IndexedMap(final K[] keyArray, final V[] valueArray, final float f, CrossHash.IHasher hasher) {
         this(keyArray.length, f, hasher);
         if (keyArray.length != valueArray.length)
             throw new IllegalArgumentException("The key array and the value array have different lengths (" + keyArray.length + " and " + valueArray.length + ")");
@@ -363,14 +363,14 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
             put(keyArray[i], valueArray[i]);
     }
     /**
-     * Creates a new OrderedMap with 0.75f as load factor using the elements of two parallel arrays.
+     * Creates a new IndexedMap with 0.75f as load factor using the elements of two parallel arrays.
      *
-     * @param keyArray the array of keys of the new OrderedMap.
-     * @param valueArray the array of corresponding values in the new OrderedMap.
+     * @param keyArray the array of keys of the new IndexedMap.
+     * @param valueArray the array of corresponding values in the new IndexedMap.
      * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
      * @throws IllegalArgumentException if <code>k</code> and <code>v</code> have different lengths.
      */
-    public OrderedMap(final K[] keyArray, final V[] valueArray, CrossHash.IHasher hasher) {
+    public IndexedMap(final K[] keyArray, final V[] valueArray, CrossHash.IHasher hasher) {
         this(keyArray, valueArray, DEFAULT_LOAD_FACTOR, hasher);
     }
 
@@ -432,13 +432,13 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Puts all key-value pairs in the Map m into this OrderedMap.
+     * Puts all key-value pairs in the Map m into this IndexedMap.
      * The entries are all appended to the end of the iteration order, unless a key was already present. Then,
      * its value is changed at the existing position in the iteration order. This can take any kind of Map,
      * including unordered HashMap objects; if the Map does not have stable ordering, the order in which entries
-     * will be appended is not stable either. For this reason, OrderedMap, LinkedHashMap, and TreeMap (or other
+     * will be appended is not stable either. For this reason, IndexedMap, LinkedHashMap, and TreeMap (or other
      * SortedMap implementations) will work best when order matters.
-     * @param m a Map that should have the same or compatible K key and V value types; OrderedMap and TreeMap work best
+     * @param m a Map that should have the same or compatible K key and V value types; IndexedMap and TreeMap work best
      */
     public void putAll(Map<? extends K, ? extends V> m) {
         if (f <= .5)
@@ -449,7 +449,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         int n = m.size();
         final Iterator<? extends Map.Entry<? extends K, ? extends V>> i = m
                 .entrySet().iterator();
-        if (m instanceof OrderedMap) {
+        if (m instanceof IndexedMap) {
             Entry<? extends K, ? extends V> e;
             while (n-- != 0) {
                 e = i.next();
@@ -894,7 +894,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      * Gets the position in the ordering of the given key, though not as efficiently as some data structures can do it.
      * Returns a value that is at least 0 if it found k, or -1 if k was not present.
      * @param k a key or possible key that this should find the index of
-     * @return the index of k, if present, or -1 if it is not present in this OrderedMap
+     * @return the index of k, if present, or -1 if it is not present in this IndexedMap
      */
     public int indexOf(final Object k)
     {
@@ -906,9 +906,9 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      * Swaps the positions in the ordering for the given items, if they are both present. Returns true if the ordering
      * changed as a result of this call, or false if it stayed the same (which can be because left or right was not
      * present, or because left and right are the same reference (so swapping would do nothing)).
-     * @param left an item that should be present in this OrderedMap
-     * @param right an item that should be present in this OrderedMap
-     * @return true if this OrderedMap changed in ordering as a result of this call, or false otherwise
+     * @param left an item that should be present in this IndexedMap
+     * @param right an item that should be present in this IndexedMap
+     * @return true if this IndexedMap changed in ordering as a result of this call, or false otherwise
      */
     public boolean swap(final K left, final K right)
     {
@@ -924,9 +924,9 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      * Swaps the given indices in the ordering, if they are both valid int indices. Returns true if the ordering
      * changed as a result of this call, or false if it stayed the same (which can be because left or right referred to
      * an out-of-bounds index, or because left and right are equal (so swapping would do nothing)).
-     * @param left an index of an item in this OrderedMap, at least 0 and less than {@link #size()}
-     * @param right an index of an item in this OrderedMap, at least 0 and less than {@link #size()}
-     * @return true if this OrderedMap changed in ordering as a result of this call, or false otherwise
+     * @param left an index of an item in this IndexedMap, at least 0 and less than {@link #size()}
+     * @param right an index of an item in this IndexedMap, at least 0 and less than {@link #size()}
+     * @return true if this IndexedMap changed in ordering as a result of this call, or false otherwise
      */
     public boolean swapIndices(final int left, final int right)
     {
@@ -992,7 +992,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * The entry class for a OrderedMap does not record key and value, but rather the position in the hash table of the corresponding entry. This is necessary so that calls to
+     * The entry class for a IndexedMap does not record key and value, but rather the position in the hash table of the corresponding entry. This is necessary so that calls to
      * {@link Entry#setValue(Object)} are reflected in the map
      */
     final class MapEntry
@@ -1035,9 +1035,9 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         }
         @Override
         public String toString() {
-            return (key[index] == OrderedMap.this ? "(this collection)" : String.valueOf(key[index]))
+            return (key[index] == IndexedMap.this ? "(this collection)" : String.valueOf(key[index]))
                     + "=>"
-                    + (value[index] == OrderedMap.this ? "(this collection)" : String.valueOf(value[index]));
+                    + (value[index] == IndexedMap.this ? "(this collection)" : String.valueOf(value[index]));
         }
     }
 
@@ -1111,10 +1111,10 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         throw new UnsupportedOperationException();
     }
     /**
-     * A list iterator over a OrderedMap.
+     * A list iterator over a IndexedMap.
      *
      * <P>
-     * This class provides a list iterator over a OrderedMap. The
+     * This class provides a list iterator over a IndexedMap. The
      * constructor runs in constant time.
      */
     private class MapIterator {
@@ -1224,7 +1224,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
                 value[n] = null;
             } else {
                 K curr;
-                final K[] key = OrderedMap.this.key;
+                final K[] key = IndexedMap.this.key;
                 // We have to horribly duplicate the shiftKeys() code because we
                 // need to update next/prev.
                 for (;;) {
@@ -1336,7 +1336,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
                         && (value[n] == null ? v == null : value[n]
                         .equals(v));
             K curr;
-            final K[] key = OrderedMap.this.key;
+            final K[] key = IndexedMap.this.key;
             int pos;
             // The starting point.
             if ((curr = key[pos = (hasher.hash(k)) & mask]) == null)
@@ -1370,7 +1370,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
                 return false;
             }
             K curr;
-            final K[] key = OrderedMap.this.key;
+            final K[] key = IndexedMap.this.key;
             int pos;
             // The starting point.
             if ((curr = key[pos = (hasher.hash(k)) & mask]) == null)
@@ -1399,7 +1399,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
             return size;
         }
         public void clear() {
-            OrderedMap.this.clear();
+            IndexedMap.this.clear();
         }
 
         @Override
@@ -1520,9 +1520,9 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
                 else
                     s.append(", ");
                 k = i.next();
-                s.append(key[k.index] == OrderedMap.this ? "(this collection)" : String.valueOf(key[k.index]))
+                s.append(key[k.index] == IndexedMap.this ? "(this collection)" : String.valueOf(key[k.index]))
                         .append("=>")
-                        .append(value[k.index] == OrderedMap.this ? "(this collection)" : String.valueOf(value[k.index]));
+                        .append(value[k.index] == IndexedMap.this ? "(this collection)" : String.valueOf(value[k.index]));
             }
             s.append("}");
             return s.toString();
@@ -1572,7 +1572,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         }
 
         public void clear() {
-            OrderedMap.this.clear();
+            IndexedMap.this.clear();
         }
 
         public K first() {
@@ -1759,7 +1759,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
                 if (first) first = false;
                 else s.append(", ");
                 K k = keyAt(i);
-                s.append(k == OrderedMap.this ? "(this collection)" : String.valueOf(k));
+                s.append(k == IndexedMap.this ? "(this collection)" : String.valueOf(k));
             }
             s.append("}");
             return s.toString();
@@ -1771,9 +1771,9 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         return keys;
     }
 
-    public OrderedSet<K> keysAsOrderedSet()
+    public IndexedSet<K> keysAsOrderedSet()
     {
-        OrderedSet<K> os = new OrderedSet<>(size, f, hasher);
+        IndexedSet<K> os = new IndexedSet<>(size, f, hasher);
         for (int i = 0; i < size; i++) {
             os.add(keyAt(i));
         }
@@ -1817,7 +1817,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
             return containsValue(v);
         }
         public void clear() {
-            OrderedMap.this.clear();
+            IndexedMap.this.clear();
         }
     }
     public Collection<V> values() {
@@ -1974,7 +1974,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      * Returns a deep copy of this map.
      *
      * <P>
-     * This method performs a deep copy of this OrderedMap; the data stored in the
+     * This method performs a deep copy of this IndexedMap; the data stored in the
      * map, however, is not cloned. Note that this makes a difference only for
      * object keys.
      *
@@ -1982,10 +1982,10 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      */
     @SuppressWarnings("unchecked")
     @GwtIncompatible
-    public OrderedMap<K, V> clone() {
-        OrderedMap<K, V> c;
+    public IndexedMap<K, V> clone() {
+        IndexedMap<K, V> c;
         try {
-            c = new OrderedMap<>(hasher);
+            c = new IndexedMap<>(hasher);
             c.key = (K[]) new Object[n + 1];
             System.arraycopy(key, 0, c.key, 0, n + 1);
             c.value = (V[]) new Object[n + 1];
@@ -2131,7 +2131,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         boolean first = true;
         K k;
         V v;
-        s.append("OrderedMap{");
+        s.append("IndexedMap{");
         while (i < n) {
             if (first) first = false;
             else s.append(", ");
@@ -2258,9 +2258,9 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         return removeEntry(pos);
     }
     /**
-     * Gets a random value from this OrderedMap in constant time, using the given IRNG to generate a random number.
+     * Gets a random value from this IndexedMap in constant time, using the given IRNG to generate a random number.
      * @param rng used to generate a random index for a value
-     * @return a random value from this OrderedMap
+     * @return a random value from this IndexedMap
      */
     public V randomValue(Random rng)
     {
@@ -2268,9 +2268,9 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Gets a random key from this OrderedMap in constant time, using the given IRNG to generate a random number.
+     * Gets a random key from this IndexedMap in constant time, using the given IRNG to generate a random number.
      * @param rng used to generate a random index for a key
-     * @return a random key from this OrderedMap
+     * @return a random key from this IndexedMap
      */
     public K randomKey(Random rng)
     {
@@ -2278,9 +2278,9 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Gets a random entry from this OrderedMap in constant time, using the given IRNG to generate a random number.
+     * Gets a random entry from this IndexedMap in constant time, using the given IRNG to generate a random number.
      * @param rng used to generate a random index for a entry
-     * @return a random key-value entry from this OrderedMap
+     * @return a random key-value entry from this IndexedMap
      */
     public Entry<K, V> randomEntry(Random rng)
     {
@@ -2288,11 +2288,11 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Randomly alters the iteration order for this OrderedMap using the given IRNG to shuffle.
+     * Randomly alters the iteration order for this IndexedMap using the given IRNG to shuffle.
      * @param rng used to generate a random ordering
      * @return this for chaining
      */
-    public OrderedMap<K, V> shuffle(Random rng)
+    public IndexedMap<K, V> shuffle(Random rng)
     {
         if(size < 2)
             return this;
@@ -2301,7 +2301,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Given an array or varargs of replacement indices for this OrderedMap's iteration order, reorders this so the
+     * Given an array or varargs of replacement indices for this IndexedMap's iteration order, reorders this so the
      * first item in the returned version is the same as {@code getAt(ordering[0])} (with some care taken for negative
      * or too-large indices), the second item in the returned version is the same as {@code getAt(ordering[1])}, etc.
      * <br>
@@ -2311,12 +2311,12 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      * affected as {@code size()}, and reversed distances are measured from the end of this Map's entries instead of
      * the end of ordering. Duplicate values in ordering will produce duplicate values in the returned Map.
      * <br>
-     * This method modifies this OrderedMap in-place and also returns it for chaining.
+     * This method modifies this IndexedMap in-place and also returns it for chaining.
      * @param ordering an array or varargs of int indices, where the nth item in ordering changes the nth item in this
      *                 Map to have the value currently in this Map at the index specified by the value in ordering
      * @return this for chaining, after modifying it in-place
      */
-    public OrderedMap<K, V> reorder(int... ordering)
+    public IndexedMap<K, V> reorder(int... ordering)
     {
         order.reorder(ordering);
         return this;
@@ -2338,8 +2338,8 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     /**
      * Swaps a key, original, for another key, replacement, while keeping replacement at the same point in the iteration
      * order as original and keeping it associated with the same value (which also keeps its iteration index). Unlike
-     * the similar method {@link #alter(Object, Object)}, this will not change this OrderedMap if replacement is already
-     * present. To contrast, alter() can reduce the size of the OrderedMap if both original and replacement are already
+     * the similar method {@link #alter(Object, Object)}, this will not change this IndexedMap if replacement is already
+     * present. To contrast, alter() can reduce the size of the IndexedMap if both original and replacement are already
      * in the Map. If replacement is found, this returns the default return value, otherwise it switches out original
      * for replacement and returns whatever was associated with original.
      * @param original the key to find and swap out
@@ -2355,7 +2355,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     /**
      * Swaps a key, original, for another key, replacement, while keeping replacement at the same point in the iteration
      * order as original and keeping it associated with the same value (which also keeps its iteration index).
-     * Be aware that if both original and replacement are present in the OrderedMap, this will still replace original
+     * Be aware that if both original and replacement are present in the IndexedMap, this will still replace original
      * with replacement but will also remove the other occurrence of replacement to avoid duplicate keys. This can throw
      * off the expected order because the duplicate could be at any point in the ordering when it is removed. You may
      * want to prefer {@link #alterCarefully(Object, Object)} if you don't feel like checking by hand for whether
@@ -2417,7 +2417,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
     /**
      * Changes the K at the given index to replacement while keeping replacement at the same point in the ordering.
-     * Be aware that if replacement is present in the OrderedMap, this will still replace the given index
+     * Be aware that if replacement is present in the IndexedMap, this will still replace the given index
      * with replacement but will also remove the other occurrence of replacement to avoid duplicate keys. This can throw
      * off the expected order because the duplicate could be at any point in the ordering when it is removed. You may
      * want to prefer {@link #alterAtCarefully(int, Object)} if you don't feel like checking by hand for whether
@@ -2432,8 +2432,8 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
     /**
      * Changes the K at the given index to replacement while keeping replacement at the same point in the ordering.
-     * Unlike the similar method {@link #alterAt(int, Object)}, this will not change this OrderedMap if replacement is
-     * already present. To contrast, alterAt() can reduce the size of the OrderedMap if replacement is already
+     * Unlike the similar method {@link #alterAt(int, Object)}, this will not change this IndexedMap if replacement is
+     * already present. To contrast, alterAt() can reduce the size of the IndexedMap if replacement is already
      * in the Map. If replacement is found, this returns the default return value, otherwise it switches out the index
      * for replacement and returns whatever value was at the index before.
      * @param index       an index to replace the K key at
@@ -2520,17 +2520,17 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
             return null;
     }
     /**
-     * Given alternating key and value arguments in pairs, puts each key-value pair into this OrderedMap as if by
+     * Given alternating key and value arguments in pairs, puts each key-value pair into this IndexedMap as if by
      * calling {@link #put(Object, Object)} repeatedly for each pair. This mimics the parameter syntax used for
      * {@link #makeMap(Object, Object, Object...)}, and can be used to retain that style of insertion after an
-     * OrderedMap has been instantiated.
+     * IndexedMap has been instantiated.
      * @param k0 the first key to add
      * @param v0 the first value to add
      * @param rest an array or vararg of keys and values in pairs; should contain alternating K, V, K, V... elements
      * @return this, after adding all viable key-value pairs given
      */
     @SuppressWarnings("unchecked")
-    public OrderedMap<K, V> putPairs(K k0, V v0, Object... rest)
+    public IndexedMap<K, V> putPairs(K k0, V v0, Object... rest)
     {
         if(rest == null || rest.length == 0)
         {
@@ -2549,7 +2549,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Makes an OrderedMap (OM) with the given load factor (which should be between 0.1 and 0.9), key and value types
+     * Makes an IndexedMap (OM) with the given load factor (which should be between 0.1 and 0.9), key and value types
      * inferred from the types of k0 and v0, and considers all remaining parameters key-value pairs, casting the Objects
      * at positions 0, 2, 4... etc. to K and the objects at positions 1, 3, 5... etc. to V. If rest has an odd-number
      * length, then it discards the last item. If any pair of items in rest cannot be cast to the correct type of K or
@@ -2562,20 +2562,20 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      * @param k0 the first key; used to infer the types of other keys if generic parameters aren't specified.
      * @param v0 the first value; used to infer the types of other values if generic parameters aren't specified.
      * @param rest an array or vararg of keys and values in pairs; should contain alternating K, V, K, V... elements
-     * @param <K> the type of keys in the returned OrderedMap; if not specified, will be inferred from k0
-     * @param <V> the type of values in the returned OrderedMap; if not specified, will be inferred from v0
-     * @return a freshly-made OrderedMap with K keys and V values, using k0, v0, and the contents of rest to fill it
+     * @param <K> the type of keys in the returned IndexedMap; if not specified, will be inferred from k0
+     * @param <V> the type of values in the returned IndexedMap; if not specified, will be inferred from v0
+     * @return a freshly-made IndexedMap with K keys and V values, using k0, v0, and the contents of rest to fill it
      */
     @SuppressWarnings("unchecked")
-    public static <K, V> OrderedMap<K, V> makeMap(K k0, V v0, Object... rest)
+    public static <K, V> IndexedMap<K, V> makeMap(K k0, V v0, Object... rest)
     {
         if(rest == null || rest.length == 0)
         {
-            OrderedMap<K, V> om = new OrderedMap<>(2);
+            IndexedMap<K, V> om = new IndexedMap<>(2);
             om.put(k0, v0);
             return om;
         }
-        OrderedMap<K, V> om = new OrderedMap<>(1 + (rest.length >> 1));
+        IndexedMap<K, V> om = new IndexedMap<>(1 + (rest.length >> 1));
         om.put(k0, v0);
 
         for (int i = 0; i < rest.length - 1; i+=2) {
@@ -2588,22 +2588,22 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Makes an empty OrderedMap (OM); needs key and value types to be specified in order to work. For an empty
-     * OrderedMap with String keys and Coord values, you could use {@code Maker.<String, Coord>makeOM()}. Using
+     * Makes an empty IndexedMap (OM); needs key and value types to be specified in order to work. For an empty
+     * IndexedMap with String keys and Coord values, you could use {@code Maker.<String, Coord>makeOM()}. Using
      * the new keyword is probably just as easy in this case; this method is provided for completeness relative to
      * makeMap() with 2 or more parameters.
-     * @param <K> the type of keys in the returned OrderedMap; cannot be inferred and must be specified
-     * @param <V> the type of values in the returned OrderedMap; cannot be inferred and must be specified
-     * @return an empty OrderedMap with the given key and value types.
+     * @param <K> the type of keys in the returned IndexedMap; cannot be inferred and must be specified
+     * @param <V> the type of values in the returned IndexedMap; cannot be inferred and must be specified
+     * @return an empty IndexedMap with the given key and value types.
      */
-    public static <K, V> OrderedMap<K, V> makeMap()
+    public static <K, V> IndexedMap<K, V> makeMap()
     {
-        return new OrderedMap<>();
+        return new IndexedMap<>();
     }
 
 
     /**
-     * Sorts this whole OrderedMap on its keys using the supplied Comparator.
+     * Sorts this whole IndexedMap on its keys using the supplied Comparator.
      * @param comparator a Comparator that can be used on the same type this uses for its keys (may need wildcards)
      */
     public void sort(Comparator<? super K> comparator)
@@ -2612,7 +2612,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Sorts a sub-range of this OrderedMap on its keys from what is currently the index {@code start} up to (but not
+     * Sorts a sub-range of this IndexedMap on its keys from what is currently the index {@code start} up to (but not
      * including) the index {@code end}, using the supplied Comparator.
      * @param comparator a Comparator that can be used on the same type this uses for its keys (may need wildcards)
      * @param start the first index of a key to sort (the index can change after this)
@@ -2620,10 +2620,10 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      */
     public void sort(Comparator<? super K> comparator, int start, int end)
     {
-        TimSort.sort(key, order, start, end, comparator);
+        IndirectSort.sort(key, order, start, end, comparator);
     }
     /**
-     * Sorts this whole OrderedMap on its values using the supplied Comparator.
+     * Sorts this whole IndexedMap on its values using the supplied Comparator.
      * @param comparator a Comparator that can be used on the same type this uses for its values (may need wildcards)
      */
     public void sortByValue(Comparator<? super V> comparator)
@@ -2632,7 +2632,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
     }
 
     /**
-     * Sorts a sub-range of this OrderedMap on its values from what is currently the index {@code start} up to (but not
+     * Sorts a sub-range of this IndexedMap on its values from what is currently the index {@code start} up to (but not
      * including) the index {@code end}, using the supplied Comparator.
      * @param comparator a Comparator that can be used on the same type this uses for its values (may need wildcards)
      * @param start the first index of a value to sort (the index can change after this)
@@ -2640,7 +2640,7 @@ public class OrderedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      */
     public void sortByValue(Comparator<? super V> comparator, int start, int end)
     {
-        TimSort.sort(value, order, start, end, comparator);
+        IndirectSort.sort(value, order, start, end, comparator);
     }
 
     /**

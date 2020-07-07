@@ -21,9 +21,9 @@ import java.util.Comparator;
  * n/2 object references; in the best case, it requires only a small constant amount of space.
  * <br>
  * Most users won't ever need this class directly; its API is meant for implementors of ordered data structures like
- * {@link OrderedMap} that allow sorting. In many cases those data structures expose methods like
- * {@link OrderedSet#sort(Comparator)} or {@link OrderedMap#sortByValue(Comparator, int, int)}, and using those class'
- * methods is a much better idea than trying to use TimSort directly on a data structure that already allows sorting.
+ * {@link IndexedMap} that allow sorting. In many cases those data structures expose methods like
+ * {@link IndexedSet#sort(Comparator)} or {@link IndexedMap#sortByValue(Comparator, int, int)}, and using those class'
+ * methods is a much better idea than trying to use IndirectSort directly on a data structure that already allows sorting.
  * <br>
  * This implementation was adapted from Tim Peters's list sort for Python, which is described in detail here:
  * <br>
@@ -38,11 +38,11 @@ import java.util.Comparator;
  * "Optimistic Sorting and Information Theoretic Complexity" Peter McIlroy SODA (Fourth Annual ACM-SIAM Symposium on Discrete
  * Algorithms), pp 467-474, Austin, Texas, 25-27 January 1993.
  * <br>
- * While the API to this class consists solely of static methods, it is (privately) instantiable; a TimSort instance holds the
- * state of an ongoing sort, assuming the input array is large enough to warrant the full-blown TimSort. Small arrays are sorted
+ * While the API to this class consists solely of static methods, it is (privately) instantiable; an IndirectSort instance holds the
+ * state of an ongoing sort, assuming the input array is large enough to warrant the full-blown IndirectSort. Small arrays are sorted
  * in place, using a binary insertion sort.
  */
-public class TimSort<T> {
+public class IndirectSort<T> {
 	/** This is the minimum sized sequence that will be merged. Shorter sequences will be lengthened by calling binarySort. If the
 	 * entire array is less than this length, no merges will be performed.
 	 * 
@@ -50,7 +50,7 @@ public class TimSort<T> {
 	 * better in this implementation. In the unlikely event that you set this constant to be a number that's not a power of two,
 	 * you'll need to change the {@link #minRunLength} computation.
 	 * 
-	 * If you decrease this constant, you must change the stackLen computation in the TimSort constructor, or you risk an
+	 * If you decrease this constant, you must change the stackLen computation in the IndirectSort constructor, or you risk an
 	 * ArrayOutOfBounds exception. See listsort.txt for a discussion of the minimum stack length required as a function of the
 	 * length of the array being sorted and the minimum merge sequence length. */
 	private static final int MIN_MERGE = 32;
@@ -95,17 +95,17 @@ public class TimSort<T> {
 	 * a command line flag. If you modify this class, please do test the asserts! */
 	private static final boolean DEBUG = false;
 
-	TimSort() {
+	IndirectSort() {
 		tmp = new int[INITIAL_TMP_STORAGE_LENGTH];
 		runBase = new int[40];
 		runLen = new int[40];
 	}
 
-	/** Creates a TimSort instance to maintain the state of an ongoing sort.
+	/** Creates an IndirectSort instance to maintain the state of an ongoing sort.
 	 * 
 	 * @param a the array to be sorted
 	 * @param c the comparator to determine the order of the sort */
-	private TimSort(T[] a, IntVLA order, Comparator<? super T> c) {
+	private IndirectSort(T[] a, IntVLA order, Comparator<? super T> c) {
 		this.a = a;
 		this.c = c;
 		this.indices = order;
@@ -133,7 +133,7 @@ public class TimSort<T> {
 	/**
 	 * Modifies {@code order} by comparing items in the array {@code a} with the Comparator {@code c}; not likely to be
 	 * used externally except by code that extends or re-implements SquidLib data structures. Generally, {@code order}
-	 * is the {@link OrderedMap#order} field or some similar IntVLA used to keep order in an OrderedSet or the like; it
+	 * is the {@link IndexedMap#order} field or some similar IntVLA used to keep order in an IndexedSet or the like; it
 	 * will be modified in-place, but the other parameters will be unchanged.
 	 * @param a an array of T, where items will be compared using {@code c}; will not be modified
 	 * @param order an IntVLA that stores indices in {@code a} in the order they would be iterated through; will be modified
@@ -147,8 +147,8 @@ public class TimSort<T> {
 	/**
 	 * Modifies {@code order} by comparing items from index {@code lo} inclusive to index {@code hi} exclusive in the
 	 * array {@code a} with the Comparator {@code c}; not likely to be used externally except by code that extends or
-	 * re-implements SquidLib data structures. Generally, {@code order} is the {@link OrderedMap#order} field or some
-	 * similar IntVLA used to keep order in an OrderedSet or the like; it will be modified in-place, but the other
+	 * re-implements SquidLib data structures. Generally, {@code order} is the {@link IndexedMap#order} field or some
+	 * similar IntVLA used to keep order in an IndexedSet or the like; it will be modified in-place, but the other
 	 * parameters will be unchanged.
 	 * @param a an array of T, where items will be compared using {@code c}; will not be modified
 	 * @param order an IntVLA that stores indices in {@code a} in the order they would be iterated through; will be modified
@@ -166,7 +166,7 @@ public class TimSort<T> {
 		int nRemaining = hi - lo;
 		if (nRemaining < 2) return; // Arrays of size 0 and 1 are always sorted
 
-		// If array is small, do a "mini-TimSort" with no merges
+		// If array is small, do a "mini-IndirectSort" with no merges
 		if (nRemaining < MIN_MERGE) {
 			int initRunLen = countRunAndMakeAscending(a, order, lo, hi, c);
 			binarySort(a, order, lo, hi, lo + initRunLen, c);
@@ -175,7 +175,7 @@ public class TimSort<T> {
 
 		/** March over the array once, left to right, finding natural runs, extending short natural runs to minRun elements, and
 		 * merging runs to maintain stack invariant. */
-		TimSort<T> ts = new TimSort<>(a, order, c);
+		IndirectSort<T> ts = new IndirectSort<>(a, order, c);
 		int minRun = minRunLength(nRemaining);
 		do {
 			// Identify next run

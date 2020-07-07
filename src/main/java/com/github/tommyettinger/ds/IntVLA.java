@@ -24,7 +24,7 @@ import java.util.Random;
  * element's position).
  * <br>
  * Was called IntArray in libGDX; to avoid confusion with the fixed-length primitive array type, VLA (variable-length
- * array) was chosen as a different name.
+ * array) was chosen as a different name. Some features have been added or have changed.
  * Copied from LibGDX by Tommy Ettinger on 10/1/2015.
  * @author Nathan Sweet */
 public class IntVLA implements Serializable, Cloneable {
@@ -109,16 +109,6 @@ public class IntVLA implements Serializable, Cloneable {
         size += end - start;
     }
 
-    public void addFractionRange (int start, int end, int fraction) {
-        int[] items = this.items;
-        int sizeNeeded = size + (end - start) / fraction + 2;
-        if (sizeNeeded > items.length) items = resize(sizeNeeded << 1 | 8);
-        for(int r = start, i = size; r < end; r = fraction * ((r / fraction) + 1), i++, size++)
-        {
-            items[i] = r;
-        }
-    }
-
     public int get (int index) {
         if (index >= size) throw new IndexOutOfBoundsException("index can't be >= size: " + index + " >= " + size);
         return items[index];
@@ -153,6 +143,11 @@ public class IntVLA implements Serializable, Cloneable {
         items[index] = value;
     }
 
+    /**
+     * Swaps two positions in the IntVLA's order.
+     * @param first  the first index to swap (not an item)
+     * @param second the second index to swap (not an item)
+     */
     public void swap (int first, int second) {
         if (first >= size) throw new IndexOutOfBoundsException("first can't be >= size: " + first + " >= " + size);
         if (second >= size) throw new IndexOutOfBoundsException("second can't be >= size: " + second + " >= " + size);
@@ -360,6 +355,10 @@ public class IntVLA implements Serializable, Cloneable {
         Arrays.sort(items, 0, size);
     }
 
+    public void sort (int start, int end) {
+        Arrays.sort(items, Math.min(Math.max(0, start), end), Math.max(start, Math.min(size, end)));
+    }
+
     public void reverse () {
         int[] items = this.items;
         for (int i = 0, lastIndex = size - 1, n = size / 2; i < n; i++) {
@@ -410,7 +409,7 @@ public class IntVLA implements Serializable, Cloneable {
     @GwtIncompatible
     @SuppressWarnings("unchecked")
     @Override
-    public Object clone() {
+    public IntVLA clone() {
         try {
             IntVLA nx = (IntVLA) super.clone();
             nx.items = new int[items.length];
@@ -424,7 +423,7 @@ public class IntVLA implements Serializable, Cloneable {
     /**
      * Hashes this IntVLA using {@link CrossHash}, getting a 32-bit result. The same algorithm is used by
      * {@link #hash64()}, just with different constants and a different final step here.
-     * @returna 32-bit hash code
+     * @return a 32-bit hash code
      */
     @Override
     public int hashCode () {
@@ -479,7 +478,10 @@ public class IntVLA implements Serializable, Cloneable {
         return buffer.toString();
     }
     
-    /** @see #IntVLA(int[]) */
+    /**
+     * Builds an IntVLA that holds a copy of the given array or varargs of int items.
+     * @see #IntVLA(int[])
+     */
     public static IntVLA with (int... array) {
         return new IntVLA(array);
     }
