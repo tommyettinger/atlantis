@@ -17,7 +17,7 @@ apply from: 'publish.gradle'
 
 def projectName = 'atlantis'
 group 'com.github.tommyettinger'
-version '0.0.1-SNAPSHOT'
+version '0.0.1'
 
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 // Disable JDK 8's doclint
@@ -35,7 +35,6 @@ if (JavaVersion.current().isJava8Compatible()) {
 repositories {
     mavenLocal()
     mavenCentral()
-    maven { url "https://jitpack.io" }
 }
 
 dependencies {
