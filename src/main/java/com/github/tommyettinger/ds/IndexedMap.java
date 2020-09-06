@@ -1771,9 +1771,9 @@ public class IndexedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         return keys;
     }
 
-    public IndexedSet<K> keysAsOrderedSet()
+    public IndexedSetCustom<K> keysAsOrderedSet()
     {
-        IndexedSet<K> os = new IndexedSet<>(size, f, hasher);
+        IndexedSetCustom<K> os = new IndexedSetCustom<>(size, f, hasher);
         for (int i = 0; i < size; i++) {
             os.add(keyAt(i));
         }

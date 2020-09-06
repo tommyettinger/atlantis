@@ -132,9 +132,14 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
      * The load factor for a (usually very small) table that is meant to be extremely fast.
      */
     public static final float VERY_FAST_LOAD_FACTOR = .25f;
+    
+    protected boolean areEqual(final Object left, final Object right){
+        return (left == right) || (left != null && left.equals(right));
+    }
 
-    protected final CrossHash.IHasher hasher;
-
+    protected int hash(final Object data){
+        return data != null ? data.hashCode() : 0;
+    }
     /**
      * Creates a new hash map.
      * <p>
@@ -156,7 +161,6 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         key = (K[]) new Object[n + 1];
         //link = new long[n + 1];
         order = new IntVLA(expected);
-        hasher = CrossHash.mildHasher;
     }
 
     /**
@@ -186,7 +190,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
      */
     public IndexedSet(final Collection<? extends K> c,
                       final float f) {
-        this(c.size(), f, (c instanceof IndexedSet) ? ((IndexedSet) c).hasher : CrossHash.mildHasher);
+        this(c.size(), f);
         addAll(c);
     }
 
@@ -196,8 +200,31 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
      *
      * @param c a {@link Collection} to be copied into the new hash set.
      */
+    @SuppressWarnings("unchecked")
     public IndexedSet(final Collection<? extends K> c) {
-        this(c, (c instanceof IndexedSet) ? ((IndexedSet) c).f : DEFAULT_LOAD_FACTOR, (c instanceof IndexedSet) ? ((IndexedSet) c).hasher : CrossHash.mildHasher);
+        int expected = c.size();
+        if(c instanceof IndexedSet){
+            IndexedSet<? extends K> cc = ((IndexedSet<? extends K>) c);
+            this.f = cc.f;
+            this.n = cc.n;
+            this.mask = cc.mask;
+            this.maxFill = cc.maxFill;
+            this.containsNull = cc.containsNull;
+            this.size = cc.size;
+            this.key = Arrays.copyOf(cc.key, cc.key.length);
+            this.order = new IntVLA(cc.order);
+        }
+        else
+        {
+            this.f = DEFAULT_LOAD_FACTOR;
+            n = arraySize(expected, f);
+            mask = n - 1;
+            maxFill = maxFill(n, f);
+            key = (K[]) new Object[n + 1];
+            order = new IntVLA(expected);
+            addAll(c);
+        }
+
     }
 
     /**
@@ -278,129 +305,6 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         this(a, DEFAULT_LOAD_FACTOR);
     }
 
-    /**
-     * Creates a new hash map.
-     * <p>
-     * <p>The actual table size will be the least power of two greater than <code>expected</code>/<code>f</code>.
-     *
-     * @param expected the expected number of elements in the hash set.
-     * @param f        the load factor.
-     * @param hasher   used to hash items; typically only needed when K is an array, where CrossHash has implementations
-     */
-    @SuppressWarnings("unchecked")
-    public IndexedSet(final int expected, final float f, CrossHash.IHasher hasher) {
-        if (f <= 0 || f > 1)
-            throw new IllegalArgumentException("Load factor must be greater than 0 and smaller than or equal to 1");
-        if (expected < 0) throw new IllegalArgumentException("The expected number of elements must be nonnegative");
-        this.f = f;
-        n = arraySize(expected, f);
-        mask = n - 1;
-        maxFill = maxFill(n, f);
-        key = (K[]) new Object[n + 1];
-        //link = new long[n + 1];
-        order = new IntVLA(expected);
-        this.hasher = hasher == null ? CrossHash.mildHasher : hasher;
-    }
-
-    /**
-     * Creates a new hash set with {@link #DEFAULT_LOAD_FACTOR} as load
-     * factor.
-     *
-     * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
-     */
-    public IndexedSet(CrossHash.IHasher hasher) {
-        this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR, hasher);
-    }
-
-    /**
-     * Creates a new hash set with {@link #DEFAULT_LOAD_FACTOR} as load
-     * factor.
-     *
-     * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
-     */
-    public IndexedSet(final int expected, CrossHash.IHasher hasher) {
-        this(expected, DEFAULT_LOAD_FACTOR, hasher);
-    }
-
-    /**
-     * Creates a new hash set copying a given collection.
-     *
-     * @param c      a {@link Collection} to be copied into the new hash set.
-     * @param f      the load factor.
-     * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
-     */
-    public IndexedSet(final Collection<? extends K> c,
-                      final float f, CrossHash.IHasher hasher) {
-        this(c.size(), f, hasher);
-        addAll(c);
-    }
-
-    /**
-     * Creates a new hash set with {@link #DEFAULT_LOAD_FACTOR} as load
-     * factor copying a given collection.
-     *
-     * @param c      a {@link Collection} to be copied into the new hash set.
-     * @param hasher used to hash items; typically only needed when K is an array, where CrossHash has implementations
-     */
-    public IndexedSet(final Collection<? extends K> c, CrossHash.IHasher hasher) {
-        this(c, DEFAULT_LOAD_FACTOR, hasher);
-    }
-
-    /**
-     * Creates a new hash set and fills it with the elements of a given array.
-     *
-     * @param a      an array whose elements will be used to fill the set.
-     * @param offset the first element to use.
-     * @param length the number of elements to use.
-     * @param f      the load factor.
-     */
-    public IndexedSet(final K[] a, final int offset,
-                      final int length, final float f, CrossHash.IHasher hasher) {
-        this(length < 0 ? 0 : length, f, hasher);
-        if (a == null) throw new NullPointerException("Array passed to IndexedSet constructor cannot be null");
-        if (offset < 0) throw new ArrayIndexOutOfBoundsException("Offset (" + offset + ") is negative");
-        if (length < 0) throw new IllegalArgumentException("Length (" + length + ") is negative");
-        if (offset + length > a.length) {
-            throw new ArrayIndexOutOfBoundsException(
-                    "Last index (" + (offset + length) + ") is greater than array length (" + a.length + ")");
-        }
-        for (int i = 0; i < length; i++)
-            add(a[offset + i]);
-    }
-
-    /**
-     * Creates a new hash set with {@link #DEFAULT_LOAD_FACTOR} as load
-     * factor and fills it with the elements of a given array.
-     *
-     * @param a      an array whose elements will be used to fill the set.
-     * @param offset the first element to use.
-     * @param length the number of elements to use.
-     */
-    public IndexedSet(final K[] a, final int offset,
-                      final int length, CrossHash.IHasher hasher) {
-        this(a, offset, length, DEFAULT_LOAD_FACTOR, hasher);
-    }
-
-    /**
-     * Creates a new hash set copying the elements of an array.
-     *
-     * @param a an array to be copied into the new hash set.
-     * @param f the load factor.
-     */
-    public IndexedSet(final K[] a, final float f, CrossHash.IHasher hasher) {
-        this(a, 0, a.length, f, hasher);
-    }
-
-    /**
-     * Creates a new hash set with {@link #DEFAULT_LOAD_FACTOR} as load
-     * factor copying the elements of an array.
-     *
-     * @param a an array to be copied into the new hash set.
-     */
-    public IndexedSet(final K[] a, CrossHash.IHasher hasher) {
-        this(a, DEFAULT_LOAD_FACTOR, hasher);
-    }
-
     private int realSize() {
         return containsNull ? size - 1 : size;
     }
@@ -468,11 +372,11 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             K curr;
             final K[] key = this.key;
             // The starting point.
-            if (!((curr = key[pos = (hasher.hash(k)) & mask]) == null)) {
-                if (hasher.areEqual(curr, k))
+            if (!((curr = key[pos = (hash(k)) & mask]) == null)) {
+                if (areEqual(curr, k))
                     return false;
                 while (!((curr = key[pos = pos + 1 & mask]) == null))
-                    if (hasher.areEqual(curr, k))
+                    if (areEqual(curr, k))
                         return false;
             }
             key[pos] = k;
@@ -499,11 +403,11 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             K curr;
             final K[] key = this.key;
             // The starting point.
-            if (!((curr = key[pos = (hasher.hash(k)) & mask]) == null)) {
-                if (hasher.areEqual(curr, k))
+            if (!((curr = key[pos = (hash(k)) & mask]) == null)) {
+                if (areEqual(curr, k))
                     return false;
                 while (!((curr = key[pos = pos + 1 & mask]) == null))
-                    if (hasher.areEqual(curr, k))
+                    if (areEqual(curr, k))
                         return false;
             }
             key[pos] = k;
@@ -539,11 +443,11 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             K curr;
             final K[] key = this.key;
             // The starting point.
-            if (!((curr = key[pos = (hasher.hash(k)) & mask]) == null)) {
-                if (hasher.areEqual(curr, k))
+            if (!((curr = key[pos = (hash(k)) & mask]) == null)) {
+                if (areEqual(curr, k))
                     return curr;
                 while (!((curr = key[pos = pos + 1 & mask]) == null))
-                    if (hasher.areEqual(curr, k))
+                    if (areEqual(curr, k))
                         return curr;
             }
             key[pos] = k;
@@ -572,7 +476,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
                     key[last] = null;
                     return;
                 }
-                slot = (hasher.hash(curr))
+                slot = (hash(curr))
                         & mask;
                 if (last <= pos ? last >= slot || slot > pos : last >= slot
                         && slot > pos)
@@ -611,14 +515,14 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         final K[] key = this.key;
         int pos;
         // The starting point.
-        if ((curr = key[pos = (hasher.hash(k)) & mask]) == null)
+        if ((curr = key[pos = (hash(k)) & mask]) == null)
             return false;
-        if (hasher.areEqual(k, curr))
+        if (areEqual(k, curr))
             return removeEntry(pos);
         while (true) {
             if ((curr = key[pos = pos + 1 & mask]) == null)
                 return false;
-            if (hasher.areEqual(k, curr))
+            if (areEqual(k, curr))
                 return removeEntry(pos);
         }
     }
@@ -712,9 +616,9 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         } else {
             // The starting point.
             final K[] key = this.key;
-            pos = (hasher.hash(k)) & mask;
+            pos = (hash(k)) & mask;
             while (!(key[pos] == null)) {
-                if (hasher.areEqual(k, key[pos])) {
+                if (areEqual(k, key[pos])) {
                     moveIndexToFirst(pos);
                     return false;
                 }
@@ -747,10 +651,10 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         } else {
             // The starting point.
             final K[] key = this.key;
-            pos = (hasher.hash(k)) & mask;
+            pos = (hash(k)) & mask;
             // There's always an unused entry.
             while (!(key[pos] == null)) {
-                if (hasher.areEqual(k, key[pos])) {
+                if (areEqual(k, key[pos])) {
                     moveIndexToLast(pos);
                     return false;
                 }
@@ -779,15 +683,15 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         final K[] key = this.key;
         int pos;
         // The starting point.
-        if ((curr = key[pos = (hasher.hash(k)) & mask]) == null)
+        if ((curr = key[pos = (hash(k)) & mask]) == null)
             return null;
-        if (hasher.areEqual(k, curr))
+        if (areEqual(k, curr))
             return curr;
         // There's always an unused entry.
         while (true) {
             if ((curr = key[pos = pos + 1 & mask]) == null)
                 return null;
-            if (hasher.areEqual(k, curr))
+            if (areEqual(k, curr))
                 return curr;
         }
     }
@@ -799,15 +703,15 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         final K[] key = this.key;
         int pos;
         // The starting point.
-        if ((curr = key[pos = (hasher.hash(k)) & mask]) == null)
+        if ((curr = key[pos = (hash(k)) & mask]) == null)
             return false;
-        if (hasher.areEqual(k, curr))
+        if (areEqual(k, curr))
             return true;
         // There's always an unused entry.
         while (true) {
             if ((curr = key[pos = pos + 1 & mask]) == null)
                 return false;
-            if (hasher.areEqual(k, curr))
+            if (areEqual(k, curr))
                 return true;
         }
     }
@@ -824,15 +728,15 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         final K[] key = this.key;
         int pos;
         // The starting point.
-        if ((curr = key[pos = (hasher.hash(k)) & mask]) == null)
+        if ((curr = key[pos = (hash(k)) & mask]) == null)
             return -1;
-        if (hasher.areEqual(k, curr))
+        if (areEqual(k, curr))
             return pos;
         // There's always an unused entry.
         while (true) {
             if ((curr = key[pos = pos + 1 & mask]) == null)
                 return -1;
-            if (hasher.areEqual(k, curr))
+            if (areEqual(k, curr))
                 return pos;
         }
     }
@@ -1164,7 +1068,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
                             key[last] = null;
                             return;
                         }
-                        slot = (hasher.hash(curr)) & mask;
+                        slot = (hash(curr)) & mask;
                         if (last <= pos
                                 ? last >= slot || slot > pos
                                 : last >= slot && slot > pos)
@@ -1308,7 +1212,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             if ((k = key[i]) == null)
                 pos = newN;
             else {
-                pos = (hasher.hash(k)) & mask;
+                pos = (hash(k)) & mask;
                 while (!(newKey[pos] == null))
                     pos = pos + 1 & mask;
             }
@@ -1384,10 +1288,10 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
     public Object clone() {
         IndexedSet<K> c;
         try {
-            c = new IndexedSet<>(hasher);
+            c = new IndexedSet<K>(1, f);
             c.key = (K[]) new Object[n + 1];
             System.arraycopy(key, 0, c.key, 0, n + 1);
-            c.order = (IntVLA) order.clone();
+            c.order = new IntVLA(order);
             return c;
         } catch (Exception cantHappen) {
             throw new UnsupportedOperationException(cantHappen + (cantHappen.getMessage() != null ?
@@ -1411,7 +1315,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             while (key[i] == null)
                 i++;
             if (this != key[i])
-                h += hasher.hash(key[i]);
+                h += hash(key[i]);
             i++;
         }
         // Zero / null have hash zero.
@@ -1586,7 +1490,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
                 pos = n;
                 containsNull = true;
             } else {
-                if (!(key[pos = (hasher.hash(k)) & mask] == null))
+                if (!(key[pos = (hash(k)) & mask] == null))
                     while (!(key[pos = pos + 1 & mask] == null)) ;
             }
             key[pos] = k;
@@ -1684,11 +1588,11 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             final K[] key = this.key;
             shiftKeys(pos);
             // The starting point.
-            if (!((curr = key[rep = (hasher.hash(replacement)) & mask]) == null)) {
-                if (hasher.areEqual(curr, replacement))
+            if (!((curr = key[rep = (hash(replacement)) & mask]) == null)) {
+                if (areEqual(curr, replacement))
                     return false;
                 while (!((curr = key[rep = rep + 1 & mask]) == null))
-                    if (hasher.areEqual(curr, replacement))
+                    if (areEqual(curr, replacement))
                         return false;
             }
             key[rep] = replacement;
@@ -1708,11 +1612,11 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             K curr;
             final K[] key = this.key;
             // The starting point.
-            if (!((curr = key[rep = (hasher.hash(replacement)) & mask]) == null)) {
-                if (hasher.areEqual(curr, replacement))
+            if (!((curr = key[rep = (hash(replacement)) & mask]) == null)) {
+                if (areEqual(curr, replacement))
                     return false;
                 while (!((curr = key[rep = rep + 1 & mask]) == null))
-                    if (hasher.areEqual(curr, replacement))
+                    if (areEqual(curr, replacement))
                         return false;
             }
             key[rep] = replacement;
@@ -1760,15 +1664,15 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             ;
             return false;
         }
-        if (hasher.areEqual(original, replacement))
+        if (areEqual(original, replacement))
             return false;
         K curr;
         final K[] key = this.key;
         int pos;
         // The starting point.
-        if ((curr = key[pos = (hasher.hash(original)) & mask]) == null)
+        if ((curr = key[pos = (hash(original)) & mask]) == null)
             return false;
-        if (hasher.areEqual(original, curr)) {
+        if (areEqual(original, curr)) {
             idx = alterEntry(pos);
             addAt(replacement, idx);
             return true;
@@ -1776,7 +1680,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         while (true) {
             if ((curr = key[pos = pos + 1 & mask]) == null)
                 return false;
-            if (hasher.areEqual(original, curr)) {
+            if (areEqual(original, curr)) {
                 idx = alterEntry(pos);
                 addAt(replacement, idx);
                 return true;

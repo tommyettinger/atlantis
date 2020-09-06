@@ -17,7 +17,7 @@ apply from: 'publish.gradle'
 
 def projectName = 'atlantis'
 group 'com.github.tommyettinger'
-version '0.0.1'
+version '0.0.2-SNAPSHOT'
 
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 // Disable JDK 8's doclint
