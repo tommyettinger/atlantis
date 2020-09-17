@@ -97,6 +97,7 @@ public class IndexedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
      * The mask for wrapping a position counter.
      */
     protected int mask;
+    protected int shift;
     /**
      * Whether this set contains the key zero.
      */
@@ -183,6 +184,7 @@ public class IndexedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         this.f = f;
         n = arraySize(expected, f);
         mask = n - 1;
+        shift = Integer.numberOfLeadingZeros(mask);
         maxFill = maxFill(n, f);
         key = (K[]) new Object[n + 1];
         value = (V[]) new Object[n + 1];
@@ -301,6 +303,7 @@ public class IndexedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         this.f = f;
         n = arraySize(expected, f);
         mask = n - 1;
+        shift = Integer.numberOfLeadingZeros(mask);
         maxFill = maxFill(n, f);
         key = (K[]) new Object[n + 1];
         value = (V[]) new Object[n + 1];
@@ -2177,6 +2180,7 @@ public class IndexedMap<K, V> implements SortedMap<K, V>, java.io.Serializable, 
         n = arraySize(size, f);
         maxFill = maxFill(n, f);
         mask = n - 1;
+        shift = Integer.numberOfLeadingZeros(mask);
         final K[] key = this.key = (K[]) new Object[n + 1];
         final V[] value = this.value = (V[]) new Object[n + 1];
         final IntVLA order = this.order = new IntVLA(n + 1);

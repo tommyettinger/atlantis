@@ -143,6 +143,7 @@ public class IndexedSetCustom<K> extends IndexedSet<K> implements SortedSet<K>, 
             IndexedSetCustom<? extends K> cc = ((IndexedSetCustom<? extends K>) c);
             this.n = cc.n;
             this.mask = cc.mask;
+            this.shift = cc.shift;
             this.maxFill = cc.maxFill;
             this.containsNull = cc.containsNull;
             this.size = cc.size;
@@ -154,6 +155,7 @@ public class IndexedSetCustom<K> extends IndexedSet<K> implements SortedSet<K>, 
             int expected = c.size();
             n = arraySize(expected, f);
             mask = n - 1;
+            shift = Integer.numberOfLeadingZeros(mask);
             maxFill = maxFill(n, f);
             key = (K[]) new Object[n + 1];
             order = new IntVLA(expected);

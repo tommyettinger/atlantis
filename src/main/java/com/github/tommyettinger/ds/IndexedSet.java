@@ -90,6 +90,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
      * The mask for wrapping a position counter.
      */
     protected int mask;
+    protected int shift;
     /**
      * Whether this set contains the key zero.
      */
@@ -138,7 +139,9 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
     }
 
     protected int hash(final Object data){
-        return data != null ? data.hashCode() : 0;
+        if(data == null) return 0;
+        int h = data.hashCode() * 0x9E377;
+        return (h ^ h >>> shift) & mask;
     }
     /**
      * Creates a new hash map.
@@ -157,6 +160,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         this.f = f;
         n = arraySize(expected, f);
         mask = n - 1;
+        shift = Integer.numberOfLeadingZeros(mask);
         maxFill = maxFill(n, f);
         key = (K[]) new Object[n + 1];
         //link = new long[n + 1];
@@ -208,6 +212,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             this.f = cc.f;
             this.n = cc.n;
             this.mask = cc.mask;
+            this.shift = cc.shift;
             this.maxFill = cc.maxFill;
             this.containsNull = cc.containsNull;
             this.size = cc.size;
@@ -219,6 +224,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
             this.f = DEFAULT_LOAD_FACTOR;
             n = arraySize(expected, f);
             mask = n - 1;
+            shift = Integer.numberOfLeadingZeros(mask);
             maxFill = maxFill(n, f);
             key = (K[]) new Object[n + 1];
             order = new IntVLA(expected);
@@ -1481,6 +1487,7 @@ public class IndexedSet<K> implements SortedSet<K>, java.io.Serializable, Clonea
         n = arraySize(size, f);
         maxFill = maxFill(n, f);
         mask = n - 1;
+        shift = Integer.numberOfLeadingZeros(mask);
         final K[] key = this.key = (K[]) new Object[n + 1];
         final IntVLA order = this.order = new IntVLA(n + 1);
         K k;
